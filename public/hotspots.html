@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <meta name="description" content="The hotspot page of a coronavirus tracking web application">
+
+  <head>
+
+    <meta charset="utf-8">
+    <title>WDC Project</title>
+
+    <link rel="stylesheet" href="/stylesheets/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <script src="/javascripts/main.js" defer></script>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="970189977830-hir0k9caolqovgu34hqp59vloqe2p39g.apps.googleusercontent.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <!-- These are to do with mapbox, do not remove--->
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css' rel='stylesheet'>
+    <script src="https://unpkg.com/es6-promise@4.2.4/dist/es6-promise.auto.min.js"></script>
+    <script src="https://unpkg.com/@mapbox/mapbox-sdk/umd/mapbox-sdk.min.js"></script>
+
+
+
+  </head>
+
+  <body>
+
+    <div id="app">
+
+      <nav class="navbar" id="navbar">
+
+        <a href="index.html">HOME</a>
+        <a href="checkin.html">CHECK-IN</a>
+        <a href="hotspots.html">HOTSPOTS</a>
+        <div class="dropdown" v-if="userInfo.username != ''">
+          <button class="dropbtn">{{ userInfo.username }}
+            <i class="fa fa-caret-down"></i>
+          </button>
+          <div class="dropdown-content">
+            <a href="account.html">Manage Account</a>
+            <a href="venues.html" v-if="userInfo.userType === 'venue'||userInfo.userType == 'admin'">Manage Venues</a>
+            <a href="admin.html" v-if="userInfo.userType === 'admin'">Manage Users</a>
+            <a onclick="logout()" style="cursor:pointer;">Log Out</a>
+          </div>
+        </div>
+        <div class="login" v-else>
+          <button class="loginbtn" onclick="document.getElementById('loginpage').style.display='block', document.getElementById('navbar').className = 'navbar'">LOGIN</button>
+        </div>
+
+        <a href="javascript:void(0);" class="icon" onclick="openMenu(), document.getElementById('loginpage').style.display='none', document.getElementById('signuppage').style.display='none'">
+          <i class="fa fa-bars"></i>
+        </a>
+
+      </nav>
+
+      <div id="main">
+
+        <div id="map" style='margin-left: 15%; margin-right: 15%; height: 400px;'></div>
+
+
+
+
+        <div id="addHotspot" v-if="userInfo.userType == 'admin'">
+          <h3 v-if="showEditHotspot">Edit Hotspot</h3>
+          <h3 v-else>Add Hotspot</h3>
+          <h4 v-if="editHotspotIndex !== -1">Editting Hotspot {{editHotspotIndex}}</h4>
+          <h4 v-if="editHotspotIndex===-1 && showEditHotspot">Please choose a hotspot to edit</h4>
+
+
+          <div v-if="!showEditHotspot || (editHotspotIndex!==-1 && showEditHotspot)">
+              <label for="hspostcode">Venue Code:</label><br>
+              <!--<label class="warning" v-if="newHotspotError.postcode">Please Enter a Valid Postcode</label>-->
+              <input type="text" v-model="newHotspot.venue" ><br>
+              <button v-on:click="showVenues = !showVenues">Show Venues</button>
+
+              <div v-if="showVenues">
+                <h4>Venues:</h4>
+                <table id=venues>
+                    <tr>
+                        <th>Index</th>
+
+                        <th>Venue Code (To Input Above)</th>
+                        <th>Venue Name</th>
+
+                    </tr>
+                    <tr v-for="(item, index) in venues">
+                        <td>{{index}}</td>
+                        <td>{{ item.v_code }}</td>
+                        <td>{{ item.venue_name }}</td>
+                    </tr>
+                </table>
+              </div>
+
+              <h4>Date of hotspot start</h4>
+
+              <label>Year that hotspot started:</label><br>
+              <label class="warning" v-if="newHotspotError.year">Please Enter a Valid Year (Current Year Maximum)</label>
+              <input type="text" v-model="newHotspot.year" ><br>
+
+              <label for="hspostcode">Month that hotspot started:</label><br>
+              <label class="warning" v-if="newHotspotError.month">Please Enter a Valid Month (Between 1 and 12)</label>
+              <input type="text" v-model="newHotspot.month" ><br>
+
+              <label for="hspostcode">Day that hotspot started:</label><br>
+              <label class="warning" v-if="newHotspotError.day">Please Enter a Valid Day (Between 1 and 31)</label>
+              <input type="text" v-model="newHotspot.day" ><br>
+
+
+
+              <div v-if="showEditHotspot">
+
+                <h4>Date of hotspot end</h4>
+
+                <p class="warning" v-if="newHotspotError.endBeforeStart">Please Enter a Valid Date (End Date After Start Date)</p>
+
+                <label for="hspostcode">Year that hotspot will end:</label><br>
+                <label class="warning" v-if="newHotspotError.endYear">Please Enter a Valid Year (Equal to or After Start Year)</label>
+                <input type="text" v-model="newHotspot.endYear" ><br>
+
+                <label for="hspostcode">Month that hotspot will end:</label><br>
+                <label class="warning" v-if="newHotspotError.endMonth">Please Enter a Valid Month (Between 0 and 12)</label>
+                <input type="text" v-model="newHotspot.endMonth" ><br>
+
+                <label for="hspostcode">Day that hotspot will end (1-31):</label><br>
+                <label class="warning" v-if="newHotspotError.endDay">Please Enter a Valid Day (Between 1 and 31)</label>
+                <input type="text" v-model="newHotspot.endDay" ><br>
+              </div>
+
+              <button type="button" v-on:click = "addHotspot" v-if="!showEditHotspot"> Add </button>
+              <button type="button" v-on:click = "editHotspotSubmit" v-if="showEditHotspot && editHotspotIndex !== -1"> Edit </button>
+          </div>
+        </div>
+
+        <h4>Hotspots:</h4>
+        <table id=hotspots>
+            <tr>
+                <th>Index</th>
+                <th>Longitude</th>
+                <th>Latitude</th>
+                <th>Venue</th>
+                <th>Hotspot Label Created</th>
+                <th>Hotspot Label Removed</th>
+                <th v-if="showEditHotspot"></th>
+                <th v-if="showEditHotspot"></th>
+
+            </tr>
+            <tr v-for="(item, index) in hotspots">
+                <td>{{index}}</td>
+                <td>{{ item.longitude }}</td>
+                <td>{{ item.latitude }}</td>
+                <td>{{ item.venue_name }}</td>
+                <td>{{ item.start_time }}</td>
+                <td>{{ item.end_time }}</td>
+                <td v-if="showEditHotspot"><button v-on:click="editHotspot($event, index)">Edit</button></td>
+                <td v-if="showEditHotspot"><button v-on:click="removeHotspot($event, index)">Remove</button></td>
+            </tr>
+        </table>
+
+        <br>
+        <button id="editHotspot" v-on:click="showEditHotspotFunc" v-if="userInfo.userType == 'admin'">Edit Hotspots</button>
+
+      </div>
+
+
+        <div id="loginpage" class="modal">
+
+      <div class="modal-content animate">
+
+        <div class="container">
+          <label for="uname"><b>Username</b></label>
+          <input type="text" placeholder="Enter Username" id="uname" required>
+
+          <label for="psw"><b>Password</b></label>
+          <input type="password" placeholder="Enter Password" id="psw" required>
+
+          <div class="g-signin2" data-onsuccess="onSignIn"></div>
+          <br>
+
+          <br>
+          <br>
+          <button type="button" onclick="login()" class="logintoggle">Login</button>
+          <br>
+          <br>
+        </div>
+
+        <div class="container" style="background-color:#f1f1f1">
+          <button type="button" onclick="document.getElementById('loginpage').style.display='none', document.getElementById('signuppage').style.display='block'" class="logintoggle">Sign Up Instead</button>
+          <button type="button" onclick="document.getElementById('loginpage').style.display='none'" class="cancelbtn">Cancel</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="signuppage" class="modal">
+
+      <div class="modal-content animate">
+
+        <div class="container">
+
+          <label for="sugname"><b>Given Name</b></label>
+          <input type="text" placeholder="Enter Given Name" id="sugname" required>
+
+          <label for="susname"><b>Surname</b></label>
+          <input type="text" placeholder="Enter Surname" id="susname" required>
+
+          <label for="suuname"><b>Username</b></label>
+          <input type="text" placeholder="Enter Username" id="suuname" required>
+
+          <label for="supsw"><b>Password</b></label>
+          <input type="password" placeholder="Enter Password" id="supsw" required>
+
+          <p><b>User Type</b></p>
+          <div class="radio_buttons">
+            <input type="radio" id="user_button" name="signUp" value="user" v-model="newUserType" required>
+            <label for="user_button">User</label><br>
+            <input type="radio" id="venue_button" name="signUp" value="venue" v-model="newUserType">
+            <label for="venue_button">Venue</label><br>
+          </div>
+
+          <br>
+
+          <button onclick="signup()" class="logintoggle">Sign Up</button>
+
+        </div>
+
+        <div class="container" style="background-color:#f1f1f1">
+          <button type="button" onclick="document.getElementById('signuppage').style.display='none', document.getElementById('loginpage').style.display='block'" class="logintoggle">Login Instead</button>
+          <button type="button" onclick="document.getElementById('signuppage').style.display='none'" class="cancelbtn">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+
+</div>
+
+<p id="copy">&#169; Kesara Sirisena 2021</p>
+
+  </body>
+
+</html>

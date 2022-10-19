@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <meta name="description" content="The check-in page of a coronavirus tracking web application">
+
+  <head>
+
+    <meta charset="utf-8">
+    <title>WDC Project</title>
+
+    <link rel="stylesheet" href="/stylesheets/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <script src="/javascripts/main.js" defer></script>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="970189977830-hir0k9caolqovgu34hqp59vloqe2p39g.apps.googleusercontent.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <!-- These are to do with mapbox, do not remove--->
+    <!-- you cant tell me what to do -->
+    <!-- i'll turn this car around-->
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css' rel='stylesheet'>
+    <script src="https://unpkg.com/es6-promise@4.2.4/dist/es6-promise.auto.min.js"></script>
+    <script src="https://unpkg.com/@mapbox/mapbox-sdk/umd/mapbox-sdk.min.js"></script>
+
+
+  </head>
+
+  <body>
+
+    <div id="app">
+
+      <nav class="navbar" id="navbar">
+
+         <a href="index.html">HOME</a>
+        <a href="checkin.html">CHECK-IN</a>
+        <a href="hotspots.html">HOTSPOTS</a>
+        <div class="dropdown" v-if="userInfo.username != ''">
+          <button class="dropbtn">{{ userInfo.username }}
+            <i class="fa fa-caret-down"></i>
+          </button>
+          <div class="dropdown-content">
+            <a href="account.html">Manage Account</a>
+            <a href="venues.html" v-if="userInfo.userType === 'venue'||userInfo.userType == 'admin'"   >Manage Venues</a>
+            <a href="admin.html" v-if="userInfo.userType === 'admin'">Manage Users</a>
+            <a onclick="logout()" style="cursor:pointer;">Log Out</a>
+          </div>
+        </div>
+        <div class="login" v-else>
+          <button class="loginbtn" onclick="document.getElementById('loginpage').style.display='block', document.getElementById('navbar').className = 'navbar'">LOGIN</button>
+        </div>
+
+        <a href="javascript:void(0);" class="icon" onclick="openMenu(), document.getElementById('loginpage').style.display='none', document.getElementById('signuppage').style.display='none'">
+          <i class="fa fa-bars"></i>
+        </a>
+
+      </nav>
+
+      <div id="main">
+
+        <div id = "Hotspot Alert" class = "hotspotWarning" v-if=" warning != ''">
+          <p>{{ warning }}</p>
+        </div>
+
+        <table v-if="warning != ''">
+          <tr>
+            <th>Location</th>
+            <th>Date</th>
+          </tr>
+
+          <tr v-for="item in hotspotsVisited">
+            <td>{{item.venue_name}}</td>
+            <td>{{item.time}}</td>
+          </tr>
+
+        </table>
+
+        <br>
+
+        <div id = "checkin_map" style='margin-left: 15%; margin-right: 15%; height: 400px;'></div>
+        <br>
+
+          <label for="checkin">Checkin Code:</label><br>
+          <input type="text" id="checkin" name="checkin" maxLength="7" style="max-width: 200px" v-model="checkinCode"><br>
+          <button v-on:click="addCheckin" >Submit</button>
+          <br>
+
+        <br>
+
+        <button type = "button" v-on:click="trackingYou">Or use device location</button>
+
+        <br>
+
+        <h4>Checkin History</h4>
+        <table id=chistory>
+
+            <tr>
+                <th v-if="userInfo.userType == 'venue'||userInfo.userType == 'admin'">Surname</th>
+                <th v-if="userInfo.userType == 'venue'||userInfo.userType == 'admin'">First name</th>
+                <th>Location</th>
+                <th>Date</th>
+            </tr>
+            <tr v-for="item in checkins">
+                <td v-if="userInfo.userType == 'venue'||userInfo.userType == 'admin'">{{ item.surname }}</td>
+                <td v-if="userInfo.userType == 'venue'||userInfo.userType == 'admin'">{{ item.given_name }}</td>
+                <td>{{ item.venue_name }}</td>
+                <td>{{ item.time }}</td>
+            </tr>
+        </table>
+
+      </div>
+
+        <div id="loginpage" class="modal">
+
+      <div class="modal-content animate">
+
+        <div class="container">
+          <label for="uname"><b>Username</b></label>
+          <input type="text" placeholder="Enter Username" id="uname" required>
+
+          <label for="psw"><b>Password</b></label>
+          <input type="password" placeholder="Enter Password" id="psw" required>
+
+          <div class="g-signin2" data-onsuccess="onSignIn"></div>
+          <br>
+
+          <br>
+          <br>
+          <button type="button" onclick="login()" class="logintoggle">Login</button>
+          <br>
+          <br>
+        </div>
+
+        <div class="container" style="background-color:#f1f1f1">
+          <button type="button" onclick="document.getElementById('loginpage').style.display='none', document.getElementById('signuppage').style.display='block'" class="logintoggle">Sign Up Instead</button>
+          <button type="button" onclick="document.getElementById('loginpage').style.display='none'" class="cancelbtn">Cancel</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="signuppage" class="modal">
+
+      <div class="modal-content animate">
+
+        <div class="container">
+
+          <label for="sugname"><b>Given Name</b></label>
+          <input type="text" placeholder="Enter Given Name" id="sugname" required>
+
+          <label for="susname"><b>Surname</b></label>
+          <input type="text" placeholder="Enter Surname" id="susname" required>
+
+          <label for="suuname"><b>Username</b></label>
+          <input type="text" placeholder="Enter Username" id="suuname" required>
+
+          <label for="supsw"><b>Password</b></label>
+          <input type="password" placeholder="Enter Password" id="supsw" required>
+
+          <p><b>User Type</b></p>
+          <div class="radio_buttons">
+            <input type="radio" id="user_button" name="signUp" value="user" v-model="newUserType" required>
+            <label for="user_button">User</label><br>
+            <input type="radio" id="venue_button" name="signUp" value="venue" v-model="newUserType">
+            <label for="venue_button">Venue</label><br>
+          </div>
+
+          <br>
+
+          <button onclick="signup()" class="logintoggle">Sign Up</button>
+
+        </div>
+
+        <div class="container" style="background-color:#f1f1f1">
+          <button type="button" onclick="document.getElementById('signuppage').style.display='none', document.getElementById('loginpage').style.display='block'" class="logintoggle">Login Instead</button>
+          <button type="button" onclick="document.getElementById('signuppage').style.display='none'" class="cancelbtn">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <p id="copy">&#169; Kesara Sirisena 2021</p>
+
+  </body>
+
+</html>
